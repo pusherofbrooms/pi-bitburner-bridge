@@ -1,0 +1,29 @@
+{
+  "name": "pi-bitburner-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "pi extension and WebSocket bridge for Bitburner 3.0 Remote API",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@mariozechner/pi-ai": { "optional": true },
+    "@mariozechner/pi-coding-agent": { "optional": true }
+  }
+}
