@@ -23,6 +23,8 @@ const statusTool = defineTool({
   name: "bb_status",
   label: "Bitburner status",
   description: "Show the Bitburner Remote API bridge status.",
+  promptSnippet: "Show Bitburner Remote API bridge connection status",
+  promptGuidelines: ["Use bb_status to check whether Bitburner is connected before using other bb_* tools."],
   parameters: Type.Object({}),
   async execute() {
     return text({ listening: bridge.isListening, connected: bridge.isConnected, url: bridge.url });
@@ -33,6 +35,8 @@ const getFileTool = defineTool({
   name: "bb_get_file",
   label: "Bitburner get file",
   description: "Read a file from Bitburner via Remote API.",
+  promptSnippet: "Read an in-game Bitburner file via Remote API",
+  promptGuidelines: ["Use bb_get_file when the user asks to inspect a file inside the running Bitburner game."],
   parameters: fileParams(),
   async execute(_id, params) {
     const server = params.server ?? "home";
@@ -45,6 +49,8 @@ const pushFileTool = defineTool({
   name: "bb_push_file",
   label: "Bitburner push file",
   description: "Create or update a file in Bitburner via Remote API.",
+  promptSnippet: "Create or update an in-game Bitburner file via Remote API",
+  promptGuidelines: ["Use bb_push_file to copy completed script changes into the running Bitburner game when requested."],
   parameters: Type.Object({
     filename: Type.String({ description: "Bitburner filename to write." }),
     content: Type.String({ description: "Full file contents." }),
@@ -61,6 +67,8 @@ const deleteFileTool = defineTool({
   name: "bb_delete_file",
   label: "Bitburner delete file",
   description: "Delete a file from Bitburner via Remote API.",
+  promptSnippet: "Delete an in-game Bitburner file via Remote API",
+  promptGuidelines: ["Use bb_delete_file only when the user explicitly asks to remove a Bitburner file."],
   parameters: fileParams(),
   async execute(_id, params) {
     const server = params.server ?? "home";
@@ -73,6 +81,8 @@ const listFilesTool = defineTool({
   name: "bb_list_files",
   label: "Bitburner list files",
   description: "List files on a Bitburner server via Remote API.",
+  promptSnippet: "List in-game Bitburner files on a server via Remote API",
+  promptGuidelines: ["Use bb_list_files to discover files on a Bitburner server before reading or modifying them."],
   parameters: Type.Object({
     server: Type.Optional(Type.String({ description: "Bitburner server hostname. Defaults to home." })),
   }),
@@ -86,6 +96,8 @@ const getAllFilesTool = defineTool({
   name: "bb_get_all_files",
   label: "Bitburner get all files",
   description: "Read every file from a Bitburner server via Remote API.",
+  promptSnippet: "Read all in-game Bitburner files from a server via Remote API",
+  promptGuidelines: ["Use bb_get_all_files when the user wants a full snapshot of scripts/files from a Bitburner server."],
   parameters: Type.Object({
     server: Type.Optional(Type.String({ description: "Bitburner server hostname. Defaults to home." })),
   }),
@@ -99,6 +111,8 @@ const calculateRamTool = defineTool({
   name: "bb_calculate_ram",
   label: "Bitburner calculate RAM",
   description: "Calculate the in-game RAM cost of a Bitburner script.",
+  promptSnippet: "Calculate in-game RAM cost for a Bitburner script",
+  promptGuidelines: ["Use bb_calculate_ram after pushing or editing a Bitburner script when the user wants in-game RAM validation."],
   parameters: fileParams(),
   async execute(_id, params) {
     const server = params.server ?? "home";
@@ -111,6 +125,8 @@ const getDefinitionFileTool = defineTool({
   name: "bb_get_definition_file",
   label: "Bitburner NS definitions",
   description: "Fetch Bitburner's current Netscript TypeScript definition file.",
+  promptSnippet: "Fetch current Bitburner Netscript TypeScript definitions",
+  promptGuidelines: ["Use bb_get_definition_file to verify API types against the running Bitburner game."],
   parameters: Type.Object({}),
   async execute() {
     return text(await bridge.getDefinitionFile());
@@ -121,6 +137,8 @@ const getAllServersTool = defineTool({
   name: "bb_get_all_servers",
   label: "Bitburner get all servers",
   description: "List all Bitburner servers with basic access metadata.",
+  promptSnippet: "List all Bitburner servers and basic access metadata",
+  promptGuidelines: ["Use bb_get_all_servers when the user asks about servers known to the running Bitburner game."],
   parameters: Type.Object({}),
   async execute() {
     return text(await bridge.getAllServers());

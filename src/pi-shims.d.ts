@@ -23,6 +23,8 @@ declare module "@mariozechner/pi-coding-agent" {
     name: string;
     label?: string;
     description: string;
+    promptSnippet?: string;
+    promptGuidelines?: string[];
     parameters: unknown;
     execute: (toolCallId: string, params: TParams, signal: AbortSignal, onUpdate: unknown, ctx: ExtensionContext) => Promise<unknown> | unknown;
   }): unknown;
