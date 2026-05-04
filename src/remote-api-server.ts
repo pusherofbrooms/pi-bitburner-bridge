@@ -75,7 +75,7 @@ export class BitburnerRemoteApiServer extends EventEmitter {
   }
 
   get isConnected(): boolean {
-    return this.client?.readyState === this.client?.OPEN;
+    return this.client !== undefined && this.client.readyState === this.client.OPEN;
   }
 
   get url(): string {
