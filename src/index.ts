@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { basename, isAbsolute, resolve } from "node:path";
 import { Type } from "@mariozechner/pi-ai";
 import { defineTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { BitburnerRemoteApiServer } from "./remote-api-server.ts";
@@ -48,18 +50,34 @@ const getFileTool = defineTool({
 const pushFileTool = defineTool({
   name: "bb_push_file",
   label: "Bitburner push file",
-  description: "Create or update a file in Bitburner via Remote API.",
-  promptSnippet: "Create or update an in-game Bitburner file via Remote API",
-  promptGuidelines: ["Use bb_push_file to copy completed script changes into the running Bitburner game when requested."],
+  description: "Create or update a file in Bitburner via Remote API. Prefer localPath for project files; use content only for generated or one-off content.",
+  promptSnippet: "Create or update an in-game Bitburner file via Remote API from a local file path or inline content",
+  promptGuidelines: ["Use bb_push_file to copy completed script changes into the running Bitburner game when requested. Prefer localPath for repeatable pushes of project files; use content only for generated or one-off content."],
   parameters: Type.Object({
-    filename: Type.String({ description: "Bitburner filename to write." }),
-    content: Type.String({ description: "Full file contents." }),
+    filename: Type.Optional(Type.String({ description: "Bitburner filename to write. Defaults to basename(localPath) when localPath is provided." })),
+    content: Type.Optional(Type.String({ description: "Full file contents." })),
+    localPath: Type.Optional(Type.String({ description: "Local file path to read and push. Relative paths are resolved against pi's current working directory." })),
     server: Type.Optional(Type.String({ description: "Bitburner server hostname. Defaults to home." })),
   }),
   async execute(_id, params) {
     const server = params.server ?? "home";
-    const result = await bridge.pushFile(params.filename, params.content, server);
-    return text(result, { filename: params.filename, server });
+    const localPath = params.localPath;
+    const filename = params.filename ?? (localPath ? basename(localPath) : undefined);
+    if (!filename) throw new Error("bb_push_file requires filename, or localPath to infer one.");
+    if (params.content === undefined && localPath === undefined) {
+      throw new Error("bb_push_file requires either content or localPath.");
+    }
+
+    let content = params.content;
+    let resolvedLocalPath: string | undefined;
+    if (localPath !== undefined) {
+      const pathToRead = isAbsolute(localPath) ? localPath : resolve(process.cwd(), localPath);
+      resolvedLocalPath = pathToRead;
+      content = await readFile(pathToRead, "utf8");
+    }
+
+    const result = await bridge.pushFile(filename, content ?? "", server);
+    return text(result, { filename, server, localPath: resolvedLocalPath });
   },
 });
 
