@@ -3,6 +3,8 @@ import { WebSocketServer, type WebSocket } from "ws";
 
 export type JsonRpcId = number;
 
+export type ScriptArg = string | number | boolean;
+
 export interface JsonRpcRequest<TParams = unknown> {
   jsonrpc: "2.0";
   id: JsonRpcId;
@@ -59,6 +61,8 @@ export class BitburnerRemoteApiServer extends EventEmitter {
   readonly requestTimeoutMs: number;
 
   private nextId = 1;
+  private nextAgentId = 1;
+  private agentQueue: Promise<unknown> = Promise.resolve();
   private wss?: WebSocketServer;
   private client?: WebSocket;
   private pending = new Map<JsonRpcId, PendingRequest>();
@@ -183,6 +187,38 @@ export class BitburnerRemoteApiServer extends EventEmitter {
 
   getAllServers(): Promise<BitburnerServerInfo[]> {
     return this.request("getAllServers");
+  }
+
+  agentRequest<TResult = unknown>(method: string, params: Record<string, unknown> = {}, timeoutMs = 10_000): Promise<TResult> {
+    const run = () => this.executeAgentRequest<TResult>(method, params, timeoutMs);
+    const result = this.agentQueue.then(run, run);
+    this.agentQueue = result.catch(() => undefined);
+    return result;
+  }
+
+  private async executeAgentRequest<TResult>(method: string, params: Record<string, unknown>, timeoutMs: number): Promise<TResult> {
+    const id = `${Date.now()}-${this.nextAgentId++}`;
+    const commandFile = "pi-bridge-command.txt";
+    const responseFile = `pi-bridge-response-${id}.txt`;
+    await this.deleteFile(responseFile, "home").catch(() => undefined);
+    await this.pushFile(commandFile, JSON.stringify({ id, method, params }), "home");
+
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      try {
+        const raw = await this.getFile(responseFile, "home");
+        const response = JSON.parse(raw) as { id?: string; result?: TResult; error?: string };
+        if (response.id !== id) throw new Error(`Bitburner agent returned mismatched response id: ${response.id}`);
+        await this.deleteFile(responseFile, "home").catch(() => undefined);
+        if (response.error) throw new Error(response.error);
+        return response.result as TResult;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("File does not exist")) throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    throw new Error(`Timed out waiting for Bitburner agent response to ${method}. Is pi-agent.js running on home?`);
   }
 
   private attachClient(socket: WebSocket): void {
