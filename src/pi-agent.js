@@ -32,8 +32,54 @@ export async function main(ns) {
     switch (method) {
       case "ping":
         return { ok: true, hostname: ns.getHostname(), time: Date.now() };
-      case "ps":
-        return ns.ps(params.server ?? "home");
+      case "ps": {
+        const server = params.server ?? "home";
+        let processes = ns.ps(server);
+
+        if (params.pid !== undefined) {
+          processes = processes.filter((process) => process.pid === params.pid);
+        }
+        if (params.filename) {
+          processes = processes.filter((process) => process.filename === params.filename);
+        }
+        if (params.filenameIncludes) {
+          processes = processes.filter((process) => process.filename.includes(params.filenameIncludes));
+        }
+        if (params.argsIncludes) {
+          const needle = String(params.argsIncludes);
+          processes = processes.filter((process) => (process.args ?? []).some((arg) => String(arg).includes(needle)));
+        }
+
+        const total = processes.length;
+        if (params.summary) {
+          const byFilename = new Map();
+          for (const process of processes) {
+            const item = byFilename.get(process.filename) ?? { filename: process.filename, count: 0, threads: 0 };
+            item.count += 1;
+            item.threads += process.threads ?? 0;
+            byFilename.set(process.filename, item);
+          }
+          return {
+            server,
+            total,
+            byFilename: [...byFilename.values()].sort((a, b) => b.count - a.count || a.filename.localeCompare(b.filename)),
+          };
+        }
+
+        const offset = Math.max(0, Math.trunc(Number(params.offset ?? 0)) || 0);
+        const requestedLimit = Math.trunc(Number(params.limit ?? 100)) || 100;
+        const limit = Math.min(1000, Math.max(0, requestedLimit));
+        const page = processes.slice(offset, offset + limit);
+        return {
+          server,
+          total,
+          returned: page.length,
+          offset,
+          limit,
+          truncated: offset + page.length < total,
+          processes: page,
+        };
+      }
       case "getScriptLogs":
         if (params.fn === undefined) return ns.getScriptLogs();
         if (typeof params.fn === "number") return ns.getScriptLogs(params.fn);

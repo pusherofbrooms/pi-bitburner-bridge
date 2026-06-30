@@ -193,15 +193,26 @@ const agentStatusTool = defineTool({
 const psTool = defineTool({
   name: "bb_ps",
   label: "Bitburner process list",
-  description: "List running scripts on a Bitburner server via the in-game diagnostic agent.",
-  promptSnippet: "List running Bitburner scripts on a server",
-  promptGuidelines: ["Use bb_ps to inspect running scripts. Requires pi-agent.js running on home; install it with bb_install_agent first."],
+  description: "List a bounded, optionally filtered page of running scripts on a Bitburner server via the in-game diagnostic agent.",
+  promptSnippet: "List running Bitburner scripts on a server with optional filters and pagination",
+  promptGuidelines: [
+    "Use bb_ps to inspect running scripts. Requires pi-agent.js running on home; install it with bb_install_agent first.",
+    "bb_ps is bounded by default to avoid huge outputs. Use filters, summary, offset, and limit for large HWGW fleets.",
+    "Prefer summary or filename filters before requesting large pages.",
+  ],
   parameters: Type.Object({
     server: Type.Optional(Type.String({ description: "Bitburner server hostname. Defaults to home." })),
+    filename: Type.Optional(Type.String({ description: "Exact script filename to match." })),
+    filenameIncludes: Type.Optional(Type.String({ description: "Substring to match in script filename." })),
+    argsIncludes: Type.Optional(Type.String({ description: "Substring to match in serialized script args." })),
+    pid: Type.Optional(numberParam("Exact process ID to match.")),
+    offset: Type.Optional(numberParam("Zero-based result offset after filtering. Defaults to 0.")),
+    limit: Type.Optional(numberParam("Maximum number of processes to return after filtering. Defaults to 100; capped at 1000.")),
+    summary: Type.Optional({ type: "boolean", description: "If true, return compact grouped counts instead of individual processes." }),
   }),
   async execute(_id, params) {
     const server = params.server ?? "home";
-    return text(await bridge.agentRequest("ps", { server }), { server });
+    return text(await bridge.agentRequest("ps", { ...params, server }), { server });
   },
 });
 
