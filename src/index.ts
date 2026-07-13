@@ -2,12 +2,9 @@ import { readFile } from "node:fs/promises";
 import { basename, isAbsolute, resolve } from "node:path";
 import { Type } from "@mariozechner/pi-ai";
 import { defineTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { BitburnerRemoteApiServer } from "./remote-api-server.ts";
+import { BitburnerBridgeClient } from "./bridge-client.ts";
 
-const bridge = new BitburnerRemoteApiServer({
-  host: process.env.BITBURNER_REMOTE_API_HOST ?? "127.0.0.1",
-  port: Number(process.env.BITBURNER_REMOTE_API_PORT ?? 12525),
-});
+const bridge = new BitburnerBridgeClient();
 
 function text(content: unknown, details: Record<string, unknown> = {}) {
   const body = typeof content === "string" ? content : JSON.stringify(content, null, 2);
@@ -42,7 +39,7 @@ const statusTool = defineTool({
   promptGuidelines: ["Use bb_status to check whether Bitburner is connected before using other bb_* tools."],
   parameters: Type.Object({}),
   async execute() {
-    return text({ listening: bridge.isListening, connected: bridge.isConnected, url: bridge.url });
+    return text(await bridge.status());
   },
 });
 
@@ -321,7 +318,8 @@ const getAllServersTool = defineTool({
 export default function bitburnerBridgeExtension(pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     await bridge.start();
-    ctx.ui.notify(`Bitburner bridge listening at ${bridge.url}. Connect in Bitburner: Options -> Remote API.`, "info");
+    const status = await bridge.status();
+    ctx.ui.notify(`Bitburner bridge ${status.connected ? "connected" : "listening"} at ${status.url}. Connect in Bitburner: Options -> Remote API.`, status.connected ? "success" : "info");
   });
 
   pi.on("session_shutdown", async () => {
@@ -331,7 +329,8 @@ export default function bitburnerBridgeExtension(pi: ExtensionAPI) {
   pi.registerCommand("bb-status", {
     description: "Show Bitburner Remote API bridge status",
     handler: async (_args, ctx) => {
-      ctx.ui.notify(`Bitburner bridge: ${bridge.isConnected ? "connected" : "waiting"} at ${bridge.url}`, bridge.isConnected ? "success" : "info");
+      const status = await bridge.status();
+      ctx.ui.notify(`Bitburner bridge: ${status.connected ? "connected" : "waiting"} at ${status.url}`, status.connected ? "success" : "info");
     },
   });
 

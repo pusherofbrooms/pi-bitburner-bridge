@@ -2,7 +2,7 @@
 
 Pi extension for Bitburner 3.0's Remote API.
 
-It starts a local WebSocket server. Bitburner connects to it, then pi can read/write in-game files and query script RAM/API data.
+It automatically starts a managed local bridge daemon. Bitburner connects to the daemon's WebSocket server, while pi talks to it through a per-user Unix socket. The daemon exits after the last pi session disconnects, so starting and quitting pi still manages the API lifecycle.
 
 ## Run
 
@@ -16,6 +16,13 @@ In Bitburner: **Options → Remote API**
 - Host: `127.0.0.1`
 - Port: `12525`
 - Click **Connect**
+
+The daemon is started automatically by the extension and owns the single Bitburner connection on port `12525`. Pi sessions share it over a local Unix socket; no separate daemon command is required. When the last pi client exits, the daemon closes the API and exits.
+
+Environment overrides:
+
+- `BITBURNER_REMOTE_API_HOST` / `BITBURNER_REMOTE_API_PORT`: Bitburner-facing WebSocket address.
+- `BITBURNER_BRIDGE_SOCKET`: pi-facing Unix socket path.
 
 ## Tools
 

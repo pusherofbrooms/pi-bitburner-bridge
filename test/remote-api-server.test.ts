@@ -72,4 +72,11 @@ describe("BitburnerRemoteApiServer", () => {
     const server = await startServer();
     await assert.rejects(server.getFile("foo.js"), /Bitburner is not connected/);
   });
+
+  it("rejects startup when another server owns the port", async () => {
+    const owner = await startServer();
+    const conflicting = new BitburnerRemoteApiServer({ port: owner.actualPort });
+    await assert.rejects(conflicting.start(), /EADDRINUSE/);
+    assert.equal(conflicting.isListening, false);
+  });
 });
