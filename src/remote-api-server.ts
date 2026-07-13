@@ -95,11 +95,21 @@ export class BitburnerRemoteApiServer extends EventEmitter {
   async start(): Promise<void> {
     if (this.wss) return;
 
-    this.wss = new WebSocketServer({ host: this.host, port: this.port });
-    this.wss.on("connection", (socket) => this.attachClient(socket));
-    this.wss.on("error", (error) => this.emit("error", error));
+    const server = new WebSocketServer({ host: this.host, port: this.port });
+    this.wss = server;
+    server.on("connection", (socket) => this.attachClient(socket));
 
-    await new Promise<void>((resolve) => this.wss?.once("listening", resolve));
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once("listening", resolve);
+        server.once("error", reject);
+      });
+    } catch (error) {
+      this.wss = undefined;
+      server.close();
+      throw error;
+    }
+    server.on("error", (error) => this.emit("error", error));
     this.emit("listening", this.url);
   }
 
