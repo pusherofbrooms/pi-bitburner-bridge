@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { createRequire } from "node:module";
 import { connect, type Socket } from "node:net";
 import { fileURLToPath } from "node:url";
 import type { BitburnerFile, BitburnerServerInfo } from "./remote-api-server.ts";
@@ -32,7 +33,10 @@ export class BitburnerBridgeClient {
     }
 
     const daemonPath = fileURLToPath(new URL("./bridge-daemon.ts", import.meta.url));
-    this.child = spawn(process.execPath, ["--import", "tsx", daemonPath], {
+    // Resolve relative to this extension, not pi's cwd. Pi extensions are often
+    // installed in a different project than the caller's working directory.
+    const tsxLoaderPath = createRequire(import.meta.url).resolve("tsx");
+    this.child = spawn(process.execPath, ["--import", tsxLoaderPath, daemonPath], {
       detached: false,
       env: process.env,
       stdio: "ignore",

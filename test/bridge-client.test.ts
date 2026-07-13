@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createServer, type Socket } from "node:net";
-import { unlink } from "node:fs/promises";
+import { mkdtemp, rm, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { BitburnerBridgeClient } from "../src/bridge-client.ts";
 
@@ -45,5 +47,29 @@ describe("BitburnerBridgeClient", () => {
     assert.equal(connections, 1);
     await client.stop();
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it("starts its daemon when pi runs from another working directory", async () => {
+    const originalCwd = process.cwd();
+    const alternateCwd = await mkdtemp(join(tmpdir(), "pi-bridge-client-"));
+    const daemonSocketPath = join(alternateCwd, "bridge.sock");
+    const originalSocketPath = process.env.BITBURNER_BRIDGE_SOCKET;
+    const daemonPort = port + 1;
+    process.env.BITBURNER_BRIDGE_SOCKET = daemonSocketPath;
+
+    try {
+      process.chdir(alternateCwd);
+      const client = new BitburnerBridgeClient(daemonPort);
+      await client.start();
+      assert.equal((await client.status()).listening, true);
+      await client.stop();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    } finally {
+      process.chdir(originalCwd);
+      if (originalSocketPath === undefined) delete process.env.BITBURNER_BRIDGE_SOCKET;
+      else process.env.BITBURNER_BRIDGE_SOCKET = originalSocketPath;
+      await unlink(daemonSocketPath).catch(() => undefined);
+      await rm(alternateCwd, { recursive: true, force: true });
+    }
   });
 });
