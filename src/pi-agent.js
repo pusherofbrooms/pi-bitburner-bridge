@@ -80,14 +80,18 @@ export async function main(ns) {
           processes: page,
         };
       }
-      case "getScriptLogs":
-        if (params.fn === undefined) return ns.getScriptLogs();
-        if (typeof params.fn === "number") return ns.getScriptLogs(params.fn);
-        return ns.getScriptLogs(params.fn, params.host ?? "home", ...(params.args ?? []));
-      case "getRunningScript":
-        if (params.fn === undefined) return ns.getRunningScript();
-        if (typeof params.fn === "number") return ns.getRunningScript(params.fn);
-        return ns.getRunningScript(params.fn, params.host ?? "home", ...(params.args ?? []));
+      case "getScriptLogs": {
+        const fn = normalizeFilenameOrPid(params.fn);
+        if (fn === undefined) return ns.getScriptLogs();
+        if (typeof fn === "number") return ns.getScriptLogs(fn);
+        return ns.getScriptLogs(fn, params.host ?? "home", ...(params.args ?? []));
+      }
+      case "getRunningScript": {
+        const fn = normalizeFilenameOrPid(params.fn);
+        if (fn === undefined) return ns.getRunningScript();
+        if (typeof fn === "number") return ns.getRunningScript(fn);
+        return ns.getRunningScript(fn, params.host ?? "home", ...(params.args ?? []));
+      }
       case "getRecentScripts":
         return ns.getRecentScripts();
       case "getServer":
@@ -99,5 +103,9 @@ export async function main(ns) {
       default:
         throw new Error("Unknown pi-agent method: " + method);
     }
+  }
+
+  function normalizeFilenameOrPid(fn) {
+    return typeof fn === "string" && /^\d+$/.test(fn) ? Number(fn) : fn;
   }
 }
