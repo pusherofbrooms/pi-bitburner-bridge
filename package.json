@@ -6,6 +6,9 @@
   "description": "pi extension and WebSocket bridge for Bitburner 3.0 Remote API",
   "main": "src/index.ts",
   "scripts": {
+    "bb": "node --import tsx src/cli.ts",
+    "daemon": "node --import tsx src/bridge-daemon.ts --persistent",
+    "test:pi": "node --import tsx scripts/pi-smoke.mjs",
     "test": "node --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },

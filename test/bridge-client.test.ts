@@ -61,7 +61,9 @@ describe("BitburnerBridgeClient", () => {
       process.chdir(alternateCwd);
       const client = new BitburnerBridgeClient(daemonPort);
       await client.start();
-      assert.equal((await client.status()).listening, true);
+      const status = await client.status();
+      assert.equal(status.listening, true);
+      assert.equal(status.url, `ws://127.0.0.1:${daemonPort}`);
       await client.stop();
       await new Promise((resolve) => setTimeout(resolve, 300));
     } finally {

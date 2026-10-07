@@ -8,6 +8,7 @@ import { defaultControlSocketPath, type BridgeStatus, type ControlResponse } fro
 interface PendingRequest {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
 }
 
 export class BitburnerBridgeClient {
@@ -23,12 +24,13 @@ export class BitburnerBridgeClient {
     return defaultControlSocketPath(this.port);
   }
 
-  async start(): Promise<void> {
+  async start(options: { autoStart?: boolean } = {}): Promise<void> {
     if (this.socket && !this.socket.destroyed) return;
     try {
       await this.open();
       return;
-    } catch {
+    } catch (error) {
+      if (options.autoStart === false) throw new Error(`Cannot connect to bridge at ${this.socketPath}. Start the standalone daemon first. ${String(error)}`);
       // No managed daemon is running yet.
     }
 
@@ -38,7 +40,7 @@ export class BitburnerBridgeClient {
     const tsxLoaderPath = createRequire(import.meta.url).resolve("tsx");
     this.child = spawn(process.execPath, ["--import", tsxLoaderPath, daemonPath], {
       detached: false,
-      env: process.env,
+      env: { ...process.env, BITBURNER_REMOTE_API_PORT: String(this.port) },
       stdio: "ignore",
     });
     this.child.unref();
@@ -72,6 +74,8 @@ export class BitburnerBridgeClient {
   status(): Promise<BridgeStatus> {
     return this.controlRequest("status") as Promise<BridgeStatus>;
   }
+
+  shutdown(): Promise<unknown> { return this.controlRequest("shutdown"); }
 
   request<TResult = unknown, TParams = unknown>(method: string, params?: TParams): Promise<TResult> {
     return this.controlRequest("request", { method, params }) as Promise<TResult>;
@@ -121,7 +125,14 @@ export class BitburnerBridgeClient {
   private controlRequest(method: string, params?: unknown): Promise<unknown> {
     if (!this.socket || this.socket.destroyed) return Promise.reject(new Error("Bitburner bridge daemon is not running"));
     const id = this.nextId++;
-    const result = new Promise<unknown>((resolve, reject) => this.pending.set(id, { resolve, reject }));
+    const result = new Promise<unknown>((resolve, reject) => {
+      const timeoutMs = method === "agentRequest" ? Number((params as { timeoutMs?: number }).timeoutMs ?? 10_000) + 5_000 : 30_000;
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`Bridge control request timed out: ${method}`));
+      }, timeoutMs);
+      this.pending.set(id, { resolve, reject, timer });
+    });
     this.socket.write(`${JSON.stringify({ id, method, params })}\n`);
     return result;
   }
@@ -138,14 +149,17 @@ export class BitburnerBridgeClient {
       const pending = this.pending.get(response.id);
       if (!pending) continue;
       this.pending.delete(response.id);
+      clearTimeout(pending.timer);
       if (response.error !== undefined) pending.reject(new Error(response.error));
       else pending.resolve(response.result);
     }
   }
 
   private rejectPending(error: Error): void {
-    for (const pending of this.pending.values()) pending.reject(error);
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timer);
+      pending.reject(error);
+    }
     this.pending.clear();
   }
 }
-

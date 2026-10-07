@@ -1,4 +1,3 @@
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 export interface ControlRequest {
@@ -20,5 +19,7 @@ export interface BridgeStatus {
 }
 
 export function defaultControlSocketPath(port: number): string {
-  return process.env.BITBURNER_BRIDGE_SOCKET ?? join(tmpdir(), `pi-bitburner-bridge-${process.getuid?.() ?? "user"}-${port}.sock`);
+  // Nix gives each develop invocation its own TMPDIR. A shared daemon needs
+  // a stable rendezvous path across independently launched Pi/CLI clients.
+  return process.env.BITBURNER_BRIDGE_SOCKET ?? join("/tmp", `pi-bitburner-bridge-${process.getuid?.() ?? "user"}-${port}.sock`);
 }
