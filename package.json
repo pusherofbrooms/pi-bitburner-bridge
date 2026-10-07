@@ -10,20 +10,24 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "tsx": "^4.19.2",
-    "ws": "^8.18.0"
+    "tsx": "^4.23.15",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@types/ws": "^8.5.13",
-    "typescript": "^5.7.2"
+    "@types/node": "^24.19.1",
+    "@types/ws": "^8.18.2",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "@mariozechner/pi-ai": "*",
     "@mariozechner/pi-coding-agent": "*"
   },
   "peerDependenciesMeta": {
-    "@mariozechner/pi-ai": { "optional": true },
-    "@mariozechner/pi-coding-agent": { "optional": true }
+    "@mariozechner/pi-ai": {
+      "optional": true
+    },
+    "@mariozechner/pi-coding-agent": {
+      "optional": true
+    }
   }
 }
