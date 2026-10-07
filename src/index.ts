@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { basename, isAbsolute, resolve } from "node:path";
-import { Type } from "@mariozechner/pi-ai";
-import { defineTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { Type } from "@earendil-works/pi-ai";
+import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { BitburnerBridgeClient } from "./bridge-client.ts";
 
 const bridge = new BitburnerBridgeClient();
@@ -18,16 +18,13 @@ function fileParams() {
   });
 }
 
-const numberParam = (description: string) => ({ type: "number", description });
-const filenameOrPidParam = (description: string) => ({
-  anyOf: [Type.String({ description: "Script filename." }), numberParam("Script PID.")],
-  description,
-});
-const scriptArgsParam = (description: string) => ({
-  type: "array",
-  items: { anyOf: [Type.String(), { type: "number" }, { type: "boolean" }] },
-  description,
-});
+const numberParam = (description: string) => Type.Number({ description });
+const filenameOrPidParam = (description: string) => Type.Union([
+  Type.String({ description: "Script filename." }), numberParam("Script PID."),
+], { description });
+const scriptArgsParam = (description: string) => Type.Array(
+  Type.Union([Type.String(), Type.Number(), Type.Boolean()]), { description },
+);
 
 const agentScriptUrl = new URL("./pi-agent.js", import.meta.url);
 
@@ -69,7 +66,7 @@ const pushFileTool = defineTool({
     localPath: Type.Optional(Type.String({ description: "Local file path to read and push. Relative paths are resolved against pi's current working directory." })),
     server: Type.Optional(Type.String({ description: "Bitburner server hostname. Defaults to home." })),
   }),
-  async execute(_id, params) {
+  async execute(_id, params, _signal, _onUpdate, ctx) {
     const server = params.server ?? "home";
     const localPath = params.localPath;
     const filename = params.filename ?? (localPath ? basename(localPath) : undefined);
@@ -81,7 +78,7 @@ const pushFileTool = defineTool({
     let content = params.content;
     let resolvedLocalPath: string | undefined;
     if (localPath !== undefined) {
-      const pathToRead = isAbsolute(localPath) ? localPath : resolve(process.cwd(), localPath);
+      const pathToRead = isAbsolute(localPath) ? localPath : resolve(ctx.cwd, localPath);
       resolvedLocalPath = pathToRead;
       content = await readFile(pathToRead, "utf8");
     }
@@ -205,7 +202,7 @@ const psTool = defineTool({
     pid: Type.Optional(numberParam("Exact process ID to match.")),
     offset: Type.Optional(numberParam("Zero-based result offset after filtering. Defaults to 0.")),
     limit: Type.Optional(numberParam("Maximum number of processes to return after filtering. Defaults to 100; capped at 1000.")),
-    summary: Type.Optional({ type: "boolean", description: "If true, return compact grouped counts instead of individual processes." }),
+    summary: Type.Optional(Type.Boolean({ description: "If true, return compact grouped counts instead of individual processes." })),
   }),
   async execute(_id, params) {
     const server = params.server ?? "home";
@@ -319,7 +316,7 @@ export default function bitburnerBridgeExtension(pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     await bridge.start();
     const status = await bridge.status();
-    ctx.ui.notify(`Bitburner bridge ${status.connected ? "connected" : "listening"} at ${status.url}. Connect in Bitburner: Options -> Remote API.`, status.connected ? "success" : "info");
+    ctx.ui.notify(`Bitburner bridge ${status.connected ? "connected" : "listening"} at ${status.url}. Connect in Bitburner: Options -> Remote API.`, "info");
   });
 
   pi.on("session_shutdown", async () => {
@@ -330,7 +327,7 @@ export default function bitburnerBridgeExtension(pi: ExtensionAPI) {
     description: "Show Bitburner Remote API bridge status",
     handler: async (_args, ctx) => {
       const status = await bridge.status();
-      ctx.ui.notify(`Bitburner bridge: ${status.connected ? "connected" : "waiting"} at ${status.url}`, status.connected ? "success" : "info");
+      ctx.ui.notify(`Bitburner bridge: ${status.connected ? "connected" : "waiting"} at ${status.url}`, "info");
     },
   });
 

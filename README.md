@@ -43,6 +43,10 @@ The Remote API itself only exposes file/server metadata, so these tools communic
 
 ## Dev
 
+Requires Node.js 22.19 or newer. The extension is typechecked against real pi 1.0.4 APIs; the development dependencies pin that version. At runtime, pi supplies the `@earendil-works/*` peer libraries.
+
+Tests run without Bitburner and cover the bridge plus extension registration, notifications, and session-relative file pushes using simulated peers.
+
 ```bash
 nix develop --command npm install
 nix develop --command npm test
